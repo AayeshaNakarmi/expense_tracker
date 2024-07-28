@@ -1,0 +1,6 @@
+streamlit
+sqlalchemy
+mysqlclient
+pandas
+matplotlib
+
