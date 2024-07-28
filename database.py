@@ -19,7 +19,7 @@ Base = declarative_base()
 
 # Define the User model
 class User(Base):
-    __tablename__ = 'users'
+    _tablename_ = 'users'
     user_id = Column(Integer, primary_key=True)
     username = Column(String(50), nullable=False)
     email = Column(String(100), nullable=False)
@@ -27,13 +27,13 @@ class User(Base):
 
 # Define the Category model
 class Category(Base):
-    __tablename__ = 'categories'
+    _tablename_ = 'categories'
     category_id = Column(Integer, primary_key=True)
     name = Column(String(50), nullable=False)
 
 # Define the Expense model
 class Expense(Base):
-    __tablename__ = 'expenses'
+    _tablename_ = 'expenses'
     expense_id = Column(Integer, primary_key=True)
     user_id = Column(Integer, ForeignKey('users.user_id'))
     amount = Column(Float, nullable=False)

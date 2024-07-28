@@ -85,9 +85,12 @@ def get_monthly_summary(user_id):
         return pd.DataFrame(columns=["Month", "Amount"])
     
     df = pd.DataFrame([(exp.amount, exp.date) for exp in expenses], columns=["Amount", "Date"])
-    df['Month'] = df['Date'].apply(lambda x: x.strftime('%Y-%m'))
-    monthly_summary = df.groupby("Month").sum().reset_index()
+    # Ensure the 'Date' column is in datetime format
+    df['Date'] = pd.to_datetime(df['Date'])
+    df['Month'] = df['Date'].dt.to_period('M').astype(str)
+    monthly_summary = df.groupby("Month")['Amount'].sum().reset_index()
     return monthly_summary
+
 
 # Streamlit app layout
 st.title("Expense Tracker")
