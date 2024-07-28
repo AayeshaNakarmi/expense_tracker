@@ -19,24 +19,24 @@ Base = declarative_base()
 class User(Base):
     __tablename__ = 'users'
     user_id = Column(Integer, primary_key=True)
-    username = Column(String(100), nullable=False)  # Added length constraint
-    email = Column(String(150), nullable=False, unique=True)  # Added length constraint
-    password = Column(String(255), nullable=False)  # Added length constraint
+    username = Column(String(100), nullable=False)
+    email = Column(String(150), nullable=False, unique=True)
+    password = Column(String(255), nullable=False)
 
 # Define the Category model
 class Category(Base):
     __tablename__ = 'categories'
     category_id = Column(Integer, primary_key=True)
-    name = Column(String(100), nullable=False, unique=True)  # Added length constraint
+    name = Column(String(100), nullable=False, unique=True)
 
 # Define the Expense model
 class Expense(Base):
     __tablename__ = 'expenses'
     expense_id = Column(Integer, primary_key=True)
     user_id = Column(Integer, ForeignKey('users.user_id'), nullable=False)
-    amount = Column(Float, nullable=False)  # Changed from Integer to Float
+    amount = Column(Float, nullable=False)
     category_id = Column(Integer, ForeignKey('categories.category_id'), nullable=False)
-    description = Column(String(255))  # Increased length from 60 to 255
+    description = Column(String(255))
     date = Column(Date, nullable=False)
 
 # Create all tables in the database
@@ -50,6 +50,35 @@ def add_expense(user_id, amount, category_id, description, date):
         session.commit()
     except Exception as e:
         st.error(f"Error adding expense: {e}")
+
+def update_expense(expense_id, amount, category_id, description, date):
+    """Update an existing expense in the database."""
+    try:
+        expense_to_update = session.query(Expense).filter_by(expense_id=expense_id).first()
+        if expense_to_update:
+            expense_to_update.amount = amount
+            expense_to_update.category_id = category_id
+            expense_to_update.description = description
+            expense_to_update.date = date
+            session.commit()
+            st.success(f"Expense {expense_id} updated successfully!")
+        else:
+            st.error(f"Expense {expense_id} not found.")
+    except Exception as e:
+        st.error(f"Error updating expense: {e}")
+
+def delete_expense(expense_id):
+    """Delete an expense from the database."""
+    try:
+        expense_to_delete = session.query(Expense).filter_by(expense_id=expense_id).first()
+        if expense_to_delete:
+            session.delete(expense_to_delete)
+            session.commit()
+            st.success(f"Expense {expense_id} deleted successfully!")
+        else:
+            st.error(f"Expense {expense_id} not found.")
+    except Exception as e:
+        st.error(f"Error deleting expense: {e}")
 
 def get_categories():
     """Retrieve all categories from the database."""
@@ -85,12 +114,10 @@ def get_monthly_summary(user_id):
         return pd.DataFrame(columns=["Month", "Amount"])
     
     df = pd.DataFrame([(exp.amount, exp.date) for exp in expenses], columns=["Amount", "Date"])
-    # Ensure the 'Date' column is in datetime format
-    df['Date'] = pd.to_datetime(df['Date'])
+    df['Date'] = pd.to_datetime(df['Date'])  # Ensure the 'Date' column is in datetime format
     df['Month'] = df['Date'].dt.to_period('M').astype(str)
     monthly_summary = df.groupby("Month")['Amount'].sum().reset_index()
     return monthly_summary
-
 
 # Streamlit app layout
 st.title("Expense Tracker")
@@ -125,6 +152,7 @@ with st.form("expense_form"):
         user_id = user.user_id
         add_expense(user_id, amount, category_id[0], description, date)
         st.success("Expense added successfully!")
+        st.experimental_rerun()
 
 # Display Expense Table
 st.subheader("Your Expenses")
@@ -134,7 +162,45 @@ expense_df = pd.DataFrame(
     columns=["ID", "Amount", "Category", "Description", "Date"]
 )
 expense_df['Category'] = expense_df['Category'].map({cat.category_id: cat.name for cat in get_categories()})
-st.dataframe(expense_df)
+
+# Display expenses in a table with delete and edit buttons
+st.write("### Expenses Table")
+
+# Create table-like structure for displaying the expenses with action buttons
+for index, row in expense_df.iterrows():
+    col1, col2, col3, col4, col5, col6 = st.columns([1, 2, 2, 2, 3, 2])
+    with col1:
+        st.write(row['ID'])
+    with col2:
+        st.write(row['Amount'])
+    with col3:
+        st.write(row['Category'])
+    with col4:
+        st.write(row['Description'])
+    with col5:
+        st.write(row['Date'])
+    with col6:
+        delete_button = st.button(f"Delete {row['ID']}", key=f"delete_{row['ID']}")
+        edit_button = st.button(f"Edit {row['ID']}", key=f"edit_{row['ID']}")
+    
+    if st.session_state.get(f"edit_{row['ID']}", False):
+        with st.form(f"edit_form_{row['ID']}"):
+            new_amount = st.number_input("Amount", value=row['Amount'], min_value=0.0, format="%.2f")
+            new_category_index = next((i for i, v in enumerate(category_options) if v[0] == row['Category']), None)
+            new_category_id = st.selectbox("Category", category_options, index=new_category_index if new_category_index is not None else 0, format_func=lambda x: x[1])
+            new_description = st.text_input("Description", value=row['Description'])
+            new_date = st.date_input("Date", value=row['Date'])
+            edit_submit_button = st.form_submit_button("Edit")
+            if edit_submit_button:
+                update_expense(row['ID'], new_amount, new_category_id[0], new_description, new_date)
+                st.session_state[f"edit_{row['ID']}"] = False
+                st.experimental_rerun()
+    
+    if delete_button:
+        delete_expense(row['ID'])
+        st.experimental_rerun()
+    if edit_button:
+        st.session_state[f"edit_{row['ID']}"] = True
 
 # Category Analysis
 st.subheader("Expenses by Category")
