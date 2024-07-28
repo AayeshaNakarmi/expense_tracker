@@ -165,10 +165,8 @@ expense_df['Category'] = expense_df['Category'].map({cat.category_id: cat.name f
 
 # Display expenses in a table with delete and edit buttons
 st.write("### Expenses Table")
-
-# Create table-like structure for displaying the expenses with action buttons
 for index, row in expense_df.iterrows():
-    col1, col2, col3, col4, col5, col6 = st.columns([1, 2, 2, 2, 3, 2])
+    col1, col2, col3, col4, col5 = st.columns([1, 1, 1, 1, 1])
     with col1:
         st.write(row['ID'])
     with col2:
@@ -179,9 +177,15 @@ for index, row in expense_df.iterrows():
         st.write(row['Description'])
     with col5:
         st.write(row['Date'])
-    with col6:
-        delete_button = st.button(f"Delete {row['ID']}", key=f"delete_{row['ID']}")
-        edit_button = st.button(f"Edit {row['ID']}", key=f"edit_{row['ID']}")
+
+    col1, col2 = st.columns(2)
+    with col1:
+        if st.button(f"Delete {row['ID']}"):
+            delete_expense(row['ID'])
+            st.experimental_rerun()
+    with col2:
+        if st.button(f"Edit {row['ID']}"):
+            st.session_state[f"edit_{row['ID']}"] = not st.session_state.get(f"edit_{row['ID']}", False)
     
     if st.session_state.get(f"edit_{row['ID']}", False):
         with st.form(f"edit_form_{row['ID']}"):
@@ -190,17 +194,11 @@ for index, row in expense_df.iterrows():
             new_category_id = st.selectbox("Category", category_options, index=new_category_index if new_category_index is not None else 0, format_func=lambda x: x[1])
             new_description = st.text_input("Description", value=row['Description'])
             new_date = st.date_input("Date", value=row['Date'])
-            edit_submit_button = st.form_submit_button("Edit")
-            if edit_submit_button:
+            edit_button = st.form_submit_button("Edit")
+            if edit_button:
                 update_expense(row['ID'], new_amount, new_category_id[0], new_description, new_date)
                 st.session_state[f"edit_{row['ID']}"] = False
                 st.experimental_rerun()
-    
-    if delete_button:
-        delete_expense(row['ID'])
-        st.experimental_rerun()
-    if edit_button:
-        st.session_state[f"edit_{row['ID']}"] = True
 
 # Category Analysis
 st.subheader("Expenses by Category")
